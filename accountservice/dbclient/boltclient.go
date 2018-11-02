@@ -7,7 +7,7 @@ import (
 	"strconv"
 
 	"github.com/boltdb/bolt"
-	"github.com/spacycoder/goblog/accountservice/model"
+	"github.com/spacycoder/go-blog/accountservice/model"
 )
 
 type IBoltClient interface {

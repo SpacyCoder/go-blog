@@ -6,7 +6,7 @@ import (
 	"strconv"
 
 	"github.com/gorilla/mux"
-	"github.com/spacycoder/goblog/accountservice/dbclient"
+	"github.com/spacycoder/go-blog/accountservice/dbclient"
 )
 
 var DBClient dbclient.IBoltClient

@@ -1,7 +1,7 @@
 package dbclient
 
 import (
-	"github.com/spacycoder/goblog/accountservice/model"
+	"github.com/spacycoder/go-blog/accountservice/model"
 	"github.com/stretchr/testify/mock"
 )
 

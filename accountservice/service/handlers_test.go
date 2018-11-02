@@ -7,8 +7,8 @@ import (
 	"testing"
 
 	. "github.com/smartystreets/goconvey/convey"
-	"github.com/spacycoder/goblog/accountservice/dbclient"
-	"github.com/spacycoder/goblog/accountservice/model"
+	"github.com/spacycoder/go-blog/accountservice/dbclient"
+	"github.com/spacycoder/go-blog/accountservice/model"
 )
 
 func TestGetAccountWrongPath(t *testing.T) {
