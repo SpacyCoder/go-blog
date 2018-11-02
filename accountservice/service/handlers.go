@@ -2,6 +2,7 @@ package service
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -9,6 +10,7 @@ import (
 	"github.com/spacycoder/go-blog/accountservice/dbclient"
 )
 
+var isHealthy = true
 var DBClient dbclient.IBoltClient
 
 func GetAccount(w http.ResponseWriter, r *http.Request) {
@@ -30,7 +32,7 @@ func GetAccount(w http.ResponseWriter, r *http.Request) {
 
 func HealthCheck(w http.ResponseWriter, r *http.Request) {
 	dbUp := DBClient.Check()
-	if dbUp {
+	if dbUp && isHealthy {
 		data, _ := json.Marshal(healthCheckResponse{Status: "UP"})
 		writeJsonResponse(w, http.StatusOK, data)
 	} else {
@@ -49,4 +51,18 @@ func writeJsonResponse(w http.ResponseWriter, status int, data []byte) {
 
 type healthCheckResponse struct {
 	Status string `json:"status"`
+}
+
+func SetHealthyState(w http.ResponseWriter, r *http.Request) {
+
+	var state, err = strconv.ParseBool(mux.Vars(r)["state"])
+
+	if err != nil {
+		fmt.Println("Invalid request to SetHealthyState, allowed values are true or false")
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	isHealthy = state
+	w.WriteHeader(http.StatusOK)
 }
