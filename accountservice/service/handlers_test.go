@@ -6,9 +6,9 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/callistaenterprise/goblog/accountservice/dbclient"
-	"github.com/callistaenterprise/goblog/accountservice/model"
 	. "github.com/smartystreets/goconvey/convey"
+	"github.com/spacycoder/goblog/accountservice/dbclient"
+	"github.com/spacycoder/goblog/accountservice/model"
 )
 
 func TestGetAccountWrongPath(t *testing.T) {

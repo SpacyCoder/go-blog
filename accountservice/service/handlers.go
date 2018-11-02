@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/callistaenterprise/goblog/accountservice/dbclient"
 	"github.com/gorilla/mux"
+	"github.com/spacycoder/goblog/accountservice/dbclient"
 )
 
 var DBClient dbclient.IBoltClient
