@@ -3,9 +3,9 @@ package main
 import (
 	"fmt"
 
-	"github.com/callistaenterprise/goblog/accountservice/dbclient"
+	"github.com/spacycoder/goblog/accountservice/dbclient"
 
-	"github.com/callistaenterprise/goblog/accountservice/service"
+	"github.com/spacycoder/goblog/accountservice/service"
 )
 
 var appName = "accountservice"
