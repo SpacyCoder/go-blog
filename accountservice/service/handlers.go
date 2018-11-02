@@ -3,16 +3,25 @@ package service
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net"
 	"net/http"
 	"strconv"
 
 	"github.com/gorilla/mux"
 	"github.com/spacycoder/go-blog/accountservice/dbclient"
+	"github.com/spacycoder/go-blog/accountservice/model"
 )
 
 var isHealthy = true
 var DBClient dbclient.IBoltClient
+
+var client = &http.Client{}
+
+func init() {
+	var transport http.RoundTripper = &http.Transport{DisableKeepAlives: true}
+	client.Transport = transport
+}
 
 func GetAccount(w http.ResponseWriter, r *http.Request) {
 
@@ -24,11 +33,29 @@ func GetAccount(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	quote, err := getQuote()
+	if err == nil {
+		account.Quote = quote
+	}
 	data, _ := json.Marshal(account)
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Content-Length", strconv.Itoa(len(data)))
 	w.WriteHeader(http.StatusOK)
 	w.Write(data)
+}
+
+func getQuote() (model.Quote, error) {
+	req, _ := http.NewRequest("GET", "http://quotes-service:8080/api/quote?strength=4", nil)
+	resp, err := client.Do(req)
+
+	if err == nil && resp.StatusCode == 200 {
+		quote := model.Quote{}
+		bytes, _ := ioutil.ReadAll(resp.Body)
+		json.Unmarshal(bytes, &quote)
+		return quote, nil
+	}
+
+	return model.Quote{}, fmt.Errorf("Some error")
 }
 
 func getIP() string {

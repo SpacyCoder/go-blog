@@ -6,10 +6,15 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/h2non/gock"
 	. "github.com/smartystreets/goconvey/convey"
 	"github.com/spacycoder/go-blog/accountservice/dbclient"
 	"github.com/spacycoder/go-blog/accountservice/model"
 )
+
+func init() {
+	gock.InterceptClient(client)
+}
 
 func TestGetAccountWrongPath(t *testing.T) {
 	Convey("Given a HTTP request for /invalid/123", t, func() {
@@ -25,6 +30,12 @@ func TestGetAccountWrongPath(t *testing.T) {
 }
 
 func TestGetAccount(t *testing.T) {
+	defer gock.Off()
+	gock.New("http://quotes-service:8080").
+		Get("/api/quote").
+		MatchParam("strength", "4").
+		Reply(200).
+		BodyString(`{"quote":"May the source be with you. Always.","ipAddress":"10.0.0.5:8080","language":"en"}`)
 	// Create a mock instance that implements the IBoltClient interface
 	mockRepo := &dbclient.MockBoltClient{}
 	// Declare two mock behaviours. For "123" as input, return a proper Account struct and nil as error.
@@ -45,6 +56,8 @@ func TestGetAccount(t *testing.T) {
 				json.Unmarshal(resp.Body.Bytes(), &account)
 				So(account.ID, ShouldEqual, "123")
 				So(account.Name, ShouldEqual, "Person_123")
+				So(account.Quote.Text, ShouldEqual, "May the source be with you. Always.")
+
 			})
 		})
 	})
