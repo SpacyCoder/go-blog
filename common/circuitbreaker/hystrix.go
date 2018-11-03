@@ -11,9 +11,9 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/afex/hystrix-go/hystrix"
-	"github.com/callistaenterprise/goblog/common/util"
 	"github.com/eapache/go-resiliency/retrier"
 	"github.com/spacycoder/go-blog/common/messaging"
+	"github.com/spacycoder/go-blog/common/util"
 	"github.com/spf13/viper"
 )
 
