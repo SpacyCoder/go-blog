@@ -4,7 +4,7 @@ import (
 	"flag"
 	"fmt"
 
-	"github.com/callistaenterprise/goblog/accountservice/config"
+	"github.com/spacycoder/go-blog/accountservice/config"
 	"github.com/spacycoder/go-blog/accountservice/dbclient"
 	"github.com/spacycoder/go-blog/accountservice/service"
 	"github.com/spf13/viper"
