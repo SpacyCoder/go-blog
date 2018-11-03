@@ -13,3 +13,7 @@ type Quote struct {
 	ServedBy string `json:"ipAddress"`
 	Language string `json:"language"`
 }
+
+func (a *Account) ToString() string {
+	return a.ID + " " + a.Name
+}

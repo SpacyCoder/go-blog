@@ -2,54 +2,79 @@ package service
 
 import (
 	"encoding/json"
-	"fmt"
-	"net"
 	"net/http"
 	"strconv"
+	"time"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/gorilla/mux"
 	"github.com/spacycoder/go-blog/accountservice/dbclient"
 	"github.com/spacycoder/go-blog/accountservice/model"
 	cb "github.com/spacycoder/go-blog/common/circuitbreaker"
+	"github.com/spacycoder/go-blog/common/messaging"
+	"github.com/spacycoder/go-blog/common/util"
 )
 
-var isHealthy = true
 var DBClient dbclient.IBoltClient
+var MessagingClient messaging.IMessagingClient
+var isHealthy = true
 
 var client = &http.Client{}
 
 var fallbackQuote = model.Quote{
 	Language: "en",
 	ServedBy: "circuit-breaker",
-	Text:     "May the source be with you. Always."}
+	Text:     "May the source be with you, always."}
 
 func init() {
-	var transport http.RoundTripper = &http.Transport{DisableKeepAlives: true}
+	var transport http.RoundTripper = &http.Transport{
+		DisableKeepAlives: true,
+	}
 	client.Transport = transport
+	cb.Client = *client
 }
 
 func GetAccount(w http.ResponseWriter, r *http.Request) {
+	// Read the 'accountId' path parameter from the mux map
+	var accountId = mux.Vars(r)["accountId"]
 
-	accountID := mux.Vars(r)["accountId"]
-	account, err := DBClient.QueryAccount(accountID)
-	account.ServedBy = getIP()
+	// Read the account struct BoltDB
+	account, err := DBClient.QueryAccount(accountId)
+	account.ServedBy = util.GetIP()
+
+	// If err, return a 404
 	if err != nil {
+		logrus.Errorf("Some error occured serving " + accountId + ": " + err.Error())
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}
 
-	account.Quote = getQuote()
-	account.ImageURL = getImageUrl(accountID)
+	notifyVIP(account) // Send VIP notification concurrently.
 
+	account.Quote = getQuote()
+	account.ImageURL = getImageUrl(accountId)
+
+	// If found, marshal into JSON, write headers and content
 	data, _ := json.Marshal(account)
-	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Content-Length", strconv.Itoa(len(data)))
-	w.WriteHeader(http.StatusOK)
-	w.Write(data)
+	writeJsonResponse(w, http.StatusOK, data)
+}
+
+// If our hard-coded "VIP" account, spawn a goroutine to send a message.
+func notifyVIP(account model.Account) {
+	if account.ID == "10000" {
+		go func(account model.Account) {
+			vipNotification := model.VipNotification{AccountId: account.ID, ReadAt: time.Now().UTC().String()}
+			data, _ := json.Marshal(vipNotification)
+			logrus.Infof("Notifying VIP account %v\n", account.ID)
+			err := MessagingClient.PublishOnQueue(data, "vip_queue")
+			if err != nil {
+				logrus.Errorln(err.Error())
+			}
+		}(account)
+	}
 }
 
 func getQuote() model.Quote {
-
 	body, err := cb.CallUsingCircuitBreaker("quotes-service", "http://quotes-service:8080/api/quote?strength=13", "GET")
 	if err == nil {
 		quote := model.Quote{}
@@ -60,8 +85,8 @@ func getQuote() model.Quote {
 	}
 }
 
-func getImageUrl(accountID string) string {
-	body, err := cb.CallUsingCircuitBreaker("imageservice", "http://imageservice:7777/accounts/"+accountID, "GET")
+func getImageUrl(accountId string) string {
+	body, err := cb.CallUsingCircuitBreaker("imageservice", "http://imageservice:7777/accounts/"+accountId, "GET")
 	if err == nil {
 		return string(body)
 	} else {
@@ -69,24 +94,8 @@ func getImageUrl(accountID string) string {
 	}
 }
 
-func getIP() string {
-	addrs, err := net.InterfaceAddrs()
-	if err != nil {
-		return "error"
-	}
-
-	for _, address := range addrs {
-		if ipnet, ok := address.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
-			if ipnet.IP.To4() != nil {
-				return ipnet.IP.String()
-			}
-		}
-	}
-
-	panic("Unable to determine local IP address (non loopback). Exiting.")
-}
-
 func HealthCheck(w http.ResponseWriter, r *http.Request) {
+	// Since we're here, we already know that HTTP service is up. Let's just check the state of the boltdb connection
 	dbUp := DBClient.Check()
 	if dbUp && isHealthy {
 		data, _ := json.Marshal(healthCheckResponse{Status: "UP"})
@@ -94,8 +103,20 @@ func HealthCheck(w http.ResponseWriter, r *http.Request) {
 	} else {
 		data, _ := json.Marshal(healthCheckResponse{Status: "Database unaccessible"})
 		writeJsonResponse(w, http.StatusServiceUnavailable, data)
-
 	}
+}
+
+func SetHealthyState(w http.ResponseWriter, r *http.Request) {
+	// Read the 'accountId' path parameter from the mux map
+	var state, err = strconv.ParseBool(mux.Vars(r)["state"])
+	if err != nil {
+		logrus.Errorln("Invalid request to SetHealthyState, allowed values are true or false")
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	isHealthy = state
+	w.WriteHeader(http.StatusOK)
 }
 
 func writeJsonResponse(w http.ResponseWriter, status int, data []byte) {
@@ -107,18 +128,4 @@ func writeJsonResponse(w http.ResponseWriter, status int, data []byte) {
 
 type healthCheckResponse struct {
 	Status string `json:"status"`
-}
-
-func SetHealthyState(w http.ResponseWriter, r *http.Request) {
-
-	var state, err = strconv.ParseBool(mux.Vars(r)["state"])
-
-	if err != nil {
-		fmt.Println("Invalid request to SetHealthyState, allowed values are true or false")
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
-
-	isHealthy = state
-	w.WriteHeader(http.StatusOK)
 }
