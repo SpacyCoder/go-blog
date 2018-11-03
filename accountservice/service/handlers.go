@@ -38,10 +38,9 @@ func GetAccount(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	quote := getQuote()
-	if err == nil {
-		account.Quote = quote
-	}
+	account.Quote = getQuote()
+	account.ImageURL = getImageUrl(accountID)
+
 	data, _ := json.Marshal(account)
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Content-Length", strconv.Itoa(len(data)))
@@ -58,6 +57,15 @@ func getQuote() model.Quote {
 		return quote
 	} else {
 		return fallbackQuote
+	}
+}
+
+func getImageUrl(accountID string) string {
+	body, err := cb.CallUsingCircuitBreaker("imageservice", "http://imageservice:7777/accounts/"+accountID, "GET")
+	if err == nil {
+		return string(body)
+	} else {
+		return "http://path.to.placeholder"
 	}
 }
 
