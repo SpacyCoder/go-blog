@@ -1,3 +1,4 @@
 accountservice/accounts.db*
 accountservice/accountservice-linux-amd64
 accountservice/healthchecker-linux-amd64
+support/config-server/server.jks
