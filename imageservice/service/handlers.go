@@ -10,7 +10,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/gorilla/mux"
-	"github.com/spacy/goblog/common/messaging"
+	"github.com/spacycoder/go-blog/common/messaging"
 )
 
 var MessagingClient messaging.IMessagingClient
