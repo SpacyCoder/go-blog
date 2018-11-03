@@ -3,7 +3,6 @@ package service
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"strconv"
@@ -11,12 +10,18 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/spacycoder/go-blog/accountservice/dbclient"
 	"github.com/spacycoder/go-blog/accountservice/model"
+	cb "github.com/spacycoder/go-blog/common/circuitbreaker"
 )
 
 var isHealthy = true
 var DBClient dbclient.IBoltClient
 
 var client = &http.Client{}
+
+var fallbackQuote = model.Quote{
+	Language: "en",
+	ServedBy: "circuit-breaker",
+	Text:     "May the source be with you. Always."}
 
 func init() {
 	var transport http.RoundTripper = &http.Transport{DisableKeepAlives: true}
@@ -33,7 +38,7 @@ func GetAccount(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	quote, err := getQuote()
+	quote := getQuote()
 	if err == nil {
 		account.Quote = quote
 	}
@@ -44,18 +49,16 @@ func GetAccount(w http.ResponseWriter, r *http.Request) {
 	w.Write(data)
 }
 
-func getQuote() (model.Quote, error) {
-	req, _ := http.NewRequest("GET", "http://quotes-service:8080/api/quote?strength=4", nil)
-	resp, err := client.Do(req)
+func getQuote() model.Quote {
 
-	if err == nil && resp.StatusCode == 200 {
+	body, err := cb.CallUsingCircuitBreaker("quotes-service", "http://quotes-service:8080/api/quote?strength=13", "GET")
+	if err == nil {
 		quote := model.Quote{}
-		bytes, _ := ioutil.ReadAll(resp.Body)
-		json.Unmarshal(bytes, &quote)
-		return quote, nil
+		json.Unmarshal(body, &quote)
+		return quote
+	} else {
+		return fallbackQuote
 	}
-
-	return model.Quote{}, fmt.Errorf("Some error")
 }
 
 func getIP() string {
